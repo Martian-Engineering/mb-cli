@@ -115,3 +115,5 @@
 {"type":"status_update","timestamp":"2026-01-30T09:22:20.845393Z","issue_id":"MB-3e5","payload":{"status":"in_progress"}}
 {"type":"comment","timestamp":"2026-01-30T09:22:24.700687Z","issue_id":"MB-3e5","payload":{"body":"COMPLETE: build scripts now include --target=bun for proper fs builtin handling at runtime."}}
 {"type":"close","timestamp":"2026-01-30T09:22:27.022357Z","issue_id":"MB-3e5","payload":{}}
+{"type":"create","timestamp":"2026-01-30T09:23:24.591906Z","issue_id":"MB-069","payload":{"description":"Commit current README.md updates.","priority":"2","title":"Docs: update README","type":"task"}}
+{"type":"status_update","timestamp":"2026-01-30T09:23:28.895859Z","issue_id":"MB-069","payload":{"status":"in_progress"}}
