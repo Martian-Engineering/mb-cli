@@ -5,6 +5,8 @@ import { rateLimitPath } from "./paths";
 const REQUESTS_PER_MIN = 100;
 const COMMENTS_PER_HOUR = 50;
 const POST_COOLDOWN_MS = 30 * 60 * 1000;
+const REQUEST_WINDOW_MS = 60_000;
+const COMMENT_WINDOW_MS = 60 * 60_000;
 
 export type RateState = {
   requests: number[];
@@ -58,22 +60,63 @@ function prune(times: number[], windowMs: number, now: number): number[] {
   return times.filter((t) => t >= cutoff);
 }
 
+function pruneBlockedUntil(
+  blockedUntil: Record<string, number> | undefined,
+  now: number,
+): Record<string, number> | undefined {
+  if (!blockedUntil) return undefined;
+  const next: Record<string, number> = {};
+  for (const [action, until] of Object.entries(blockedUntil)) {
+    if (typeof until === "number" && until > now) {
+      next[action] = until;
+    }
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+function pruneState(state: RateState, now: number): RateState {
+  return {
+    requests: prune(state.requests, REQUEST_WINDOW_MS, now),
+    comments: prune(state.comments, COMMENT_WINDOW_MS, now),
+    posts: prune(state.posts, POST_COOLDOWN_MS, now),
+    blocked_until: pruneBlockedUntil(state.blocked_until, now),
+  };
+}
+
+function isStateEmpty(state: RateState): boolean {
+  return (
+    state.requests.length === 0 &&
+    state.comments.length === 0 &&
+    state.posts.length === 0 &&
+    !state.blocked_until
+  );
+}
+
+function pruneStore(store: RateStore, now: number): RateStore {
+  for (const [profile, state] of Object.entries(store)) {
+    const pruned = pruneState(state, now);
+    if (isStateEmpty(pruned)) {
+      delete store[profile];
+    } else {
+      store[profile] = pruned;
+    }
+  }
+  return store;
+}
+
 export function checkRateLimit(
   profile: string,
   action: "request" | "comment" | "post",
 ): RateDecision {
-  const store = loadStore();
-  const state = ensureState(store, profile);
   const now = Date.now();
+  const store = pruneStore(loadStore(), now);
+  const state = ensureState(store, profile);
 
   if (state.blocked_until && state.blocked_until[action] && state.blocked_until[action]! > now) {
     const waitMs = state.blocked_until[action]! - now;
     return { allowed: false, waitMs, reason: `server retry_after for ${action}` };
   }
 
-  state.requests = prune(state.requests, 60_000, now);
-  state.comments = prune(state.comments, 60 * 60_000, now);
-  state.posts = prune(state.posts, POST_COOLDOWN_MS, now);
   saveStore(store);
 
   if (action === "request") {
@@ -112,9 +155,9 @@ export function checkRateLimit(
 }
 
 export function recordAction(profile: string, action: "request" | "comment" | "post"): void {
-  const store = loadStore();
-  const state = ensureState(store, profile);
   const now = Date.now();
+  const store = pruneStore(loadStore(), now);
+  const state = ensureState(store, profile);
 
   if (action === "request") state.requests.push(now);
   if (action === "comment") state.comments.push(now);
@@ -142,10 +185,11 @@ export function applyServerRetryAfter(
   action: "request" | "comment" | "post",
   retryAfterSeconds: number,
 ): void {
-  const store = loadStore();
+  const now = Date.now();
+  const store = pruneStore(loadStore(), now);
   const state = ensureState(store, profile);
   if (!state.blocked_until) state.blocked_until = {};
-  state.blocked_until[action] = Date.now() + retryAfterSeconds * 1000;
+  state.blocked_until[action] = now + retryAfterSeconds * 1000;
   saveStore(store);
 }
 

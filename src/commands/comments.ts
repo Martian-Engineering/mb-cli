@@ -21,6 +21,31 @@ export function registerCommentCommands(ctx: CommandContext): void {
 
   const comments = program.command("comments").description("Comments commands");
 
+  function extractCommentsFromPost(payload: unknown): { found: boolean; comments: unknown } {
+    if (!payload || typeof payload !== "object") {
+      return { found: false, comments: payload };
+    }
+    const record = payload as Record<string, unknown>;
+    if (Array.isArray(record.comments)) {
+      return { found: true, comments: record.comments };
+    }
+    const post = record.post;
+    if (post && typeof post === "object") {
+      const postRecord = post as Record<string, unknown>;
+      if (Array.isArray(postRecord.comments)) {
+        return { found: true, comments: postRecord.comments };
+      }
+    }
+    const data = record.data;
+    if (data && typeof data === "object") {
+      const dataRecord = data as Record<string, unknown>;
+      if (Array.isArray(dataRecord.comments)) {
+        return { found: true, comments: dataRecord.comments };
+      }
+    }
+    return { found: false, comments: payload };
+  }
+
   comments
     .command("list")
     .description("List comments for a post")
@@ -36,6 +61,7 @@ export function registerCommentCommands(ctx: CommandContext): void {
         idempotent: true,
       });
       let fallback = false;
+      let fallbackMode: "post" | "post.comments" | undefined;
 
       if (!res.ok && res.status === 405) {
         const fallbackRes = await request(client, "GET", `/posts/${postId}`, { idempotent: true });
@@ -50,14 +76,34 @@ export function registerCommentCommands(ctx: CommandContext): void {
         process.exit(1);
       }
 
-      const { data, safety, sanitization } = await attachInboundSafety(res.data);
+      let payload = res.data;
+      if (fallback) {
+        const extracted = extractCommentsFromPost(res.data);
+        if (extracted.found) {
+          payload = extracted.comments;
+          fallbackMode = "post.comments";
+        } else {
+          fallbackMode = "post";
+        }
+      }
+
+      const { data, safety, sanitization } = await attachInboundSafety(payload);
       if (opts.json) {
-        printJson({ result: data, safety, sanitization, fallback: fallback ? "post" : undefined });
+        printJson({
+          result: data,
+          safety,
+          sanitization,
+          fallback: fallback ? fallbackMode || "post" : undefined,
+        });
         return;
       }
 
       if (fallback) {
-        printInfo("Note: comments endpoint unavailable; showing post with comments instead.", opts);
+        const note =
+          fallbackMode === "post.comments"
+            ? "Note: comments endpoint unavailable; extracted comments from post response."
+            : "Note: comments endpoint unavailable; showing post with comments instead.";
+        printInfo(note, opts);
       }
       warnSanitization(sanitization, opts, "sanitized inbound comments content");
       if (safety.length > 0) {
