@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, unlinkSync, writeFileSync } from "fs";
 import { basename, dirname, join } from "path";
 import { SensitiveEntry } from "./config";
 import { jailbreakDir, sensitiveFactsDir } from "./paths";
@@ -9,7 +9,7 @@ const DEFAULT_INBOUND_THRESHOLD = 0.8;
 
 const OUTBOUND_API_KEY_PATTERNS: { label: string; pattern: RegExp }[] = [
   { label: "openai_sk", pattern: /\bsk-(?:proj|live|test)?-[a-zA-Z0-9]{20,}\b/ },
-  { label: "anthropic_sk", pattern: /\bsk-ant-[a-zA-Z0-9]{20,}\b/ },
+  { label: "anthropic_sk", pattern: /\bsk-ant-[a-zA-Z0-9-]{20,}\b/ },
   { label: "aws_access_key", pattern: /\bAKIA[0-9A-Z]{16}\b/ },
   { label: "gcp_api_key", pattern: /\bAIza[0-9A-Za-z\-_]{35}\b/ },
   { label: "github_token", pattern: /\bgh[opsu]_[A-Za-z0-9]{36,}\b/ },
@@ -46,6 +46,124 @@ const INBOUND_SOCIAL_ENGINEERING_PATTERNS: { label: string; pattern: RegExp }[] 
     pattern: /\bsudo\s+rm\s+-rf\s+\/\b/i,
   },
 ];
+
+const MAX_DECODE_CHARS = Number(process.env.MB_INBOUND_DECODE_MAX_CHARS ?? "4000");
+const MAX_DECODE_TOKENS = Number(process.env.MB_INBOUND_DECODE_MAX_TOKENS ?? "5");
+
+function addMatch(
+  matches: SafetyMatch[],
+  seen: Set<string>,
+  match: SafetyMatch
+): void {
+  const key = `${match.source}:${match.label ?? ""}:${match.pattern ?? ""}`;
+  if (seen.has(key)) return;
+  seen.add(key);
+  matches.push(match);
+}
+
+function addStringPatterns(
+  text: string,
+  patterns: { label: string; pattern: string }[],
+  matches: SafetyMatch[],
+  seen: Set<string>,
+  prefix?: string
+): void {
+  const lower = text.toLowerCase();
+  for (const entry of patterns) {
+    if (lower.includes(entry.pattern.toLowerCase())) {
+      addMatch(matches, seen, {
+        source: "regex",
+        label: prefix ? `${prefix}:${entry.label}` : entry.label,
+        pattern: entry.pattern,
+      });
+    }
+  }
+}
+
+function addRegexPatterns(
+  text: string,
+  patterns: { label: string; pattern: RegExp }[],
+  matches: SafetyMatch[],
+  seen: Set<string>,
+  prefix?: string
+): void {
+  for (const entry of patterns) {
+    if (entry.pattern.test(text)) {
+      addMatch(matches, seen, {
+        source: "regex",
+        label: prefix ? `${prefix}:${entry.label}` : entry.label,
+        pattern: entry.pattern.source,
+      });
+    }
+  }
+}
+
+function isMostlyPrintable(text: string): boolean {
+  if (!text) return false;
+  let printable = 0;
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    if (code === 9 || code === 10 || code === 13) {
+      printable += 1;
+      continue;
+    }
+    if (code >= 32 && code <= 126) printable += 1;
+  }
+  return printable / text.length >= 0.85;
+}
+
+function looksEncoded(text: string): boolean {
+  const compact = text.replace(/\s+/g, "");
+  if (compact.length < 20) return false;
+  const base64Chars = compact.match(/[A-Za-z0-9+/=]/g)?.length ?? 0;
+  if (base64Chars / compact.length > 0.92 && compact.length % 4 === 0) return true;
+  const hexChars = compact.match(/[0-9a-fA-F]/g)?.length ?? 0;
+  if (hexChars / compact.length > 0.92 && compact.length % 2 === 0) return true;
+
+  const letters = text.match(/[A-Za-z]/g)?.length ?? 0;
+  const vowels = text.match(/[aeiouAEIOU]/g)?.length ?? 0;
+  if (letters > 20) {
+    const vowelRatio = vowels / letters;
+    const spaceRatio = (text.match(/\s/g)?.length ?? 0) / text.length;
+    if (vowelRatio < 0.18 && spaceRatio < 0.2) return true;
+  }
+  return false;
+}
+
+function rot13(text: string): string {
+  return text.replace(/[a-zA-Z]/g, (ch) => {
+    const base = ch <= "Z" ? 65 : 97;
+    const code = ch.charCodeAt(0) - base;
+    return String.fromCharCode(((code + 13) % 26) + base);
+  });
+}
+
+function caesarShift(text: string, shift: number): string {
+  return text.replace(/[a-zA-Z]/g, (ch) => {
+    const base = ch <= "Z" ? 65 : 97;
+    const code = ch.charCodeAt(0) - base;
+    return String.fromCharCode(((code + shift) % 26) + base);
+  });
+}
+
+function decodeBase64Token(token: string): string | null {
+  try {
+    const decoded = Buffer.from(token, "base64").toString("utf-8");
+    return isMostlyPrintable(decoded) ? decoded : null;
+  } catch {
+    return null;
+  }
+}
+
+function decodeHexToken(token: string): string | null {
+  if (token.length % 2 !== 0) return null;
+  try {
+    const decoded = Buffer.from(token, "hex").toString("utf-8");
+    return isMostlyPrintable(decoded) ? decoded : null;
+  } catch {
+    return null;
+  }
+}
 
 function ensureDir(path: string): void {
   if (!existsSync(path)) {
@@ -211,17 +329,47 @@ export async function scanOutbound(text: string, profile: string, entries: Sensi
 
 export async function scanInbound(text: string, options: { useQmd?: boolean } = {}): Promise<SafetyMatch[]> {
   const matches: SafetyMatch[] = [];
+  const seen = new Set<string>();
+  const sample = text.slice(0, Math.max(0, MAX_DECODE_CHARS));
 
-  for (const entry of JAILBREAK_PATTERNS) {
-    if (text.toLowerCase().includes(entry.pattern.toLowerCase())) {
-      matches.push({ source: "regex", label: entry.label, pattern: entry.pattern });
+  addStringPatterns(sample, JAILBREAK_PATTERNS, matches, seen);
+  addRegexPatterns(sample, INBOUND_SOCIAL_ENGINEERING_PATTERNS, matches, seen);
+
+  const shouldDecode = looksEncoded(sample);
+  if (shouldDecode) {
+    const rot = rot13(sample);
+    addStringPatterns(rot, JAILBREAK_PATTERNS, matches, seen, "decoded_rot13");
+    addRegexPatterns(rot, INBOUND_SOCIAL_ENGINEERING_PATTERNS, matches, seen, "decoded_rot13");
+
+    for (let shift = 1; shift < 26; shift += 1) {
+      if (shift === 13) continue;
+      const shifted = caesarShift(sample, shift);
+      addStringPatterns(shifted, JAILBREAK_PATTERNS, matches, seen, `decoded_caesar_${shift}`);
+      addRegexPatterns(shifted, INBOUND_SOCIAL_ENGINEERING_PATTERNS, matches, seen, `decoded_caesar_${shift}`);
+      if (matches.length >= 10) break;
     }
   }
 
-  for (const entry of INBOUND_SOCIAL_ENGINEERING_PATTERNS) {
-    if (entry.pattern.test(text)) {
-      matches.push({ source: "regex", label: entry.label, pattern: entry.pattern.source });
-    }
+  const base64Matches = sample.match(/[A-Za-z0-9+/=]{20,}/g) || [];
+  let decodedTokens = 0;
+  for (const token of base64Matches) {
+    if (decodedTokens >= MAX_DECODE_TOKENS) break;
+    const decoded = decodeBase64Token(token);
+    if (!decoded) continue;
+    decodedTokens += 1;
+    addStringPatterns(decoded, JAILBREAK_PATTERNS, matches, seen, "decoded_base64");
+    addRegexPatterns(decoded, INBOUND_SOCIAL_ENGINEERING_PATTERNS, matches, seen, "decoded_base64");
+  }
+
+  const hexMatches = sample.match(/\b[0-9a-fA-F]{20,}\b/g) || [];
+  decodedTokens = 0;
+  for (const token of hexMatches) {
+    if (decodedTokens >= MAX_DECODE_TOKENS) break;
+    const decoded = decodeHexToken(token);
+    if (!decoded) continue;
+    decodedTokens += 1;
+    addStringPatterns(decoded, JAILBREAK_PATTERNS, matches, seen, "decoded_hex");
+    addRegexPatterns(decoded, INBOUND_SOCIAL_ENGINEERING_PATTERNS, matches, seen, "decoded_hex");
   }
 
   if ((options.useQmd ?? true) && resolveQmdCommand()) {
