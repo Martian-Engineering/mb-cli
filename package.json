@@ -10,8 +10,8 @@
     "test": "bun test --pass-with-no-tests",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "build": "bun build src/mb.ts --outfile dist/mb.js",
-    "build:no-dms": "bun build src/mb.ts --outfile dist/mb.js --define:MB_NO_DMS=true"
+    "build": "bun build src/mb.ts --outfile dist/mb.js --target=bun",
+    "build:no-dms": "bun build src/mb.ts --outfile dist/mb.js --define:MB_NO_DMS=true --target=bun"
   },
   "dependencies": {
     "commander": "^12.1.0",
