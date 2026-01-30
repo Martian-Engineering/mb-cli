@@ -170,6 +170,7 @@ function readJailbreakRemote(): { url?: string } {
 }
 
 async function enforceRateLimit(profile: string, action: "request" | "comment" | "post", opts: Record<string, unknown>): Promise<void> {
+  if (opts.dryRun) return;
   const maxWait = Math.max(1, Number(opts.maxWait)) * 1000;
   while (true) {
     const decision = checkRateLimit(profile, action);
