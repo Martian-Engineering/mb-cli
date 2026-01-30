@@ -152,3 +152,6 @@
 {"type":"comment","timestamp":"2026-01-30T16:31:15.520999Z","issue_id":"MB-b2e","payload":{"body":"COMPLETE: added inbound social-engineering regexes for credential requests, urgency manipulation, and destructive command injection; also added rm -rf pattern."}}
 {"type":"close","timestamp":"2026-01-30T16:31:18.468898Z","issue_id":"MB-b2e","payload":{}}
 {"type":"create","timestamp":"2026-01-30T16:32:11.164247Z","issue_id":"MB-23f","payload":{"description":"scanOutbound calls syncSensitiveFactsFiles which unlinks existing files in ~/.config/moltbook/sensitive/\u003cprofile\u003e. On this machine, unlink throws EPERM for 1-owner-email.md, causing the CLI to crash during outbound scans. Should handle permissions errors gracefully (ignore, chmod, or skip delete).","priority":"2","title":"Outbound safety sync fails on EPERM when pruning sensitive facts files","type":"bug"}}
+{"type":"status_update","timestamp":"2026-01-30T16:50:52.186549Z","issue_id":"MB-23f","payload":{"status":"in_progress"}}
+{"type":"comment","timestamp":"2026-01-30T16:51:33.752566Z","issue_id":"MB-23f","payload":{"body":"COMPLETE: switch sensitive facts sync to atomic swap with temp dir and best-effort fallback; avoids unlink crashes and ignores permission errors gracefully."}}
+{"type":"close","timestamp":"2026-01-30T16:51:39.089991Z","issue_id":"MB-23f","payload":{}}

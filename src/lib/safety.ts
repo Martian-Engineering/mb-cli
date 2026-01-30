@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync } from "fs";
-import { join } from "path";
+import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "fs";
+import { basename, dirname, join } from "path";
 import { SensitiveEntry } from "./config";
 import { jailbreakDir, sensitiveFactsDir } from "./paths";
 import { ensureQmdIndex, resolveQmdCommand, runQmd } from "./qmd";
@@ -67,17 +67,76 @@ export function ensureJailbreakFiles(): void {
 
 export function syncSensitiveFactsFiles(profile: string, entries: SensitiveEntry[]): void {
   const dir = sensitiveFactsDir(profile);
-  ensureDir(dir);
-  const existing = readdirSync(dir).filter((f) => f.endsWith(".md"));
-  for (const file of existing) {
-    unlinkSync(join(dir, file));
+  const parent = dirname(dir);
+  ensureDir(parent);
+
+  const writeFiles = (target: string) => {
+    ensureDir(target);
+    entries.forEach((entry, idx) => {
+      const safeLabel = entry.label.replace(/[^a-zA-Z0-9-_]+/g, "-").toLowerCase();
+      const filename = join(target, `${idx + 1}-${safeLabel || "fact"}.md`);
+      const body = entry.pattern;
+      writeFileSync(filename, `${body}\n`, { mode: 0o600 });
+    });
+  };
+
+  const dirName = basename(dir);
+  const tmpDir = join(parent, `${dirName}.tmp-${Date.now()}`);
+  let tmpReady = false;
+  try {
+    writeFiles(tmpDir);
+    tmpReady = true;
+  } catch {
+    // fall back to in-place writes if temp dir cannot be created
+    try {
+      writeFiles(dir);
+    } catch {
+      // ignore write failures
+    }
+    return;
   }
-  entries.forEach((entry, idx) => {
-    const safeLabel = entry.label.replace(/[^a-zA-Z0-9-_]+/g, "-").toLowerCase();
-    const filename = join(dir, `${idx + 1}-${safeLabel || "fact"}.md`);
-    const body = entry.pattern;
-    writeFileSync(filename, `${body}\n`, { mode: 0o600 });
-  });
+
+  const backupDir = join(parent, `${dirName}.bak-${Date.now()}`);
+  let backupMoved = false;
+  let swapped = false;
+
+  try {
+    if (existsSync(dir)) {
+      renameSync(dir, backupDir);
+      backupMoved = true;
+    }
+    renameSync(tmpDir, dir);
+    swapped = true;
+  } catch {
+    if (backupMoved && !existsSync(dir)) {
+      try {
+        renameSync(backupDir, dir);
+        backupMoved = false;
+      } catch {
+        // ignore restore failures
+      }
+    }
+    try {
+      writeFiles(dir);
+    } catch {
+      // ignore write failures
+    }
+  } finally {
+    if (!swapped) {
+      try {
+        rmSync(tmpDir, { recursive: true, force: true });
+      } catch {
+        // ignore cleanup failures
+      }
+    }
+    if (backupMoved) {
+      try {
+        rmSync(backupDir, { recursive: true, force: true });
+      } catch {
+        // ignore cleanup failures
+      }
+    }
+  }
 }
 
 export type SafetyMatch = {
