@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
-import { dirname, join } from "path";
+import { dirname } from "path";
 import { configDir, credentialsPath, sensitiveStorePath } from "./paths";
 
 export type ProfileRecord = Record<string, unknown> & {
