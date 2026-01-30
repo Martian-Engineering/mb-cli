@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, unlinkSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "fs";
 import { basename, dirname, join } from "path";
 import { SensitiveEntry } from "./config";
 import { jailbreakDir, sensitiveFactsDir } from "./paths";
@@ -200,10 +200,8 @@ export function syncSensitiveFactsFiles(profile: string, entries: SensitiveEntry
 
   const dirName = basename(dir);
   const tmpDir = join(parent, `${dirName}.tmp-${Date.now()}`);
-  let tmpReady = false;
   try {
     writeFiles(tmpDir);
-    tmpReady = true;
   } catch {
     // fall back to in-place writes if temp dir cannot be created
     try {
