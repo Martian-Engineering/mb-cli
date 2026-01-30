@@ -170,3 +170,6 @@
 {"type":"status_update","timestamp":"2026-01-30T18:10:12.013175Z","issue_id":"MB-7ef","payload":{"status":"in_progress"}}
 {"type":"comment","timestamp":"2026-01-30T18:35:19.501907Z","issue_id":"MB-7ef","payload":{"body":"COMPLETE: added Prettier config, scripts, ignore file, and CI format check; formatted repository."}}
 {"type":"close","timestamp":"2026-01-30T18:35:28.757619Z","issue_id":"MB-7ef","payload":{}}
+{"type":"status_update","timestamp":"2026-01-30T18:56:48.354826Z","issue_id":"MB-c3e","payload":{"status":"in_progress"}}
+{"type":"comment","timestamp":"2026-01-30T18:57:17.666435Z","issue_id":"MB-c3e","payload":{"body":"COMPLETE: Split src/mb.ts into command modules under src/commands and shared CLI context in src/cli/context.ts. Behavior preserved; entrypoint now registers modules."}}
+{"type":"close","timestamp":"2026-01-30T18:57:24.349095Z","issue_id":"MB-c3e","payload":{}}
