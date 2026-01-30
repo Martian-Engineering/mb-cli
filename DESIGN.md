@@ -4,11 +4,11 @@
 
 All safety filtering runs locally. No data leaves the machine. We reuse the same model stack as [qmd](https://github.com/user/qmd):
 
-| Component | Model | Size | Location |
-|-----------|-------|------|----------|
-| **Embeddings** | `embeddinggemma-300M` | ~300MB | `~/.cache/qmd/models/` |
-| **Reranker** | `qwen3-reranker-0.6b` | ~639MB | `~/.cache/qmd/models/` |
-| **Query expansion** | `Qwen3-0.6B` | ~600MB | `~/.cache/qmd/models/` |
+| Component           | Model                 | Size   | Location               |
+| ------------------- | --------------------- | ------ | ---------------------- |
+| **Embeddings**      | `embeddinggemma-300M` | ~300MB | `~/.cache/qmd/models/` |
+| **Reranker**        | `qwen3-reranker-0.6b` | ~639MB | `~/.cache/qmd/models/` |
+| **Query expansion** | `Qwen3-0.6B`          | ~600MB | `~/.cache/qmd/models/` |
 
 All models run on Apple Silicon via MLX. Total footprint ~1.5GB on disk, fast inference on M-series chips.
 
@@ -29,6 +29,7 @@ Before any outgoing message (post, comment, DM) leaves the machine, we check it 
 ### Example
 
 Sensitive facts collection:
+
 ```
 Eric Helal, full name
 +1 (816) 729-5454, phone number
@@ -101,7 +102,7 @@ Agent
 mb-cli
   ├── Outbound filter ──→ Sensitive facts collection (local embeddings)
   │     └── Block if threshold exceeded
-  ├── Inbound filter ──→ Jailbreak pattern library (local embeddings)  
+  ├── Inbound filter ──→ Jailbreak pattern library (local embeddings)
   │     └── Flag with warning header
   └── Moltbook API ←──→ REST calls
 ```

@@ -1,7 +1,7 @@
-const TAG_START = 0xE0000;
-const TAG_END = 0xE007F;
-const TAG_CANCEL = 0xE007F;
-const BLACK_FLAG = 0x1F3F4;
+const TAG_START = 0xe0000;
+const TAG_END = 0xe007f;
+const TAG_CANCEL = 0xe007f;
+const BLACK_FLAG = 0x1f3f4;
 
 const ALLOWED_TAG_SEQUENCES = new Set(["gbeng", "gbsct", "gbwls"]);
 
@@ -16,19 +16,19 @@ function isTag(cp: number): boolean {
 }
 
 function isVariationSelector(cp: number): boolean {
-  return (cp >= 0xFE00 && cp <= 0xFE0F) || (cp >= 0xE0100 && cp <= 0xE01EF);
+  return (cp >= 0xfe00 && cp <= 0xfe0f) || (cp >= 0xe0100 && cp <= 0xe01ef);
 }
 
 function isZeroWidth(cp: number): boolean {
-  return cp === 0x200B || cp === 0x200C || cp === 0x200D || cp === 0x2060;
+  return cp === 0x200b || cp === 0x200c || cp === 0x200d || cp === 0x2060;
 }
 
 function isBidiOverride(cp: number): boolean {
-  return (cp >= 0x202A && cp <= 0x202E) || (cp >= 0x2066 && cp <= 0x2069);
+  return (cp >= 0x202a && cp <= 0x202e) || (cp >= 0x2066 && cp <= 0x2069);
 }
 
 function isInterlinear(cp: number): boolean {
-  return cp >= 0xFFF9 && cp <= 0xFFFB;
+  return cp >= 0xfff9 && cp <= 0xfffb;
 }
 
 function tagSequenceToAscii(seq: number[]): string {
@@ -61,7 +61,11 @@ export function sanitizeText(text: string): SanitizationResult {
         break;
       }
 
-      if (tagSequence.length > 0 && j < chars.length && (chars[j].codePointAt(0) ?? 0) === TAG_CANCEL) {
+      if (
+        tagSequence.length > 0 &&
+        j < chars.length &&
+        (chars[j].codePointAt(0) ?? 0) === TAG_CANCEL
+      ) {
         const tagAscii = tagSequenceToAscii(tagSequence);
         if (ALLOWED_TAG_SEQUENCES.has(tagAscii)) {
           output += ch;
@@ -114,7 +118,11 @@ export function sanitizeText(text: string): SanitizationResult {
   return { text: output, warnings: Array.from(warnings), changed };
 }
 
-export function sanitizeData(value: unknown): { value: unknown; warnings: string[]; changed: boolean } {
+export function sanitizeData(value: unknown): {
+  value: unknown;
+  warnings: string[];
+  changed: boolean;
+} {
   const warnings = new Set<string>();
   let changed = false;
 

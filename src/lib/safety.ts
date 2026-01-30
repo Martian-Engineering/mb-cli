@@ -31,15 +31,18 @@ const JAILBREAK_PATTERNS: { label: string; pattern: string }[] = [
 const INBOUND_SOCIAL_ENGINEERING_PATTERNS: { label: string; pattern: RegExp }[] = [
   {
     label: "credential_request",
-    pattern: /(?:send|share|give|provide|post|publish|dump|reveal).{0,80}(?:api\s*key|token|secret|password|access key|credentials?)/i,
+    pattern:
+      /(?:send|share|give|provide|post|publish|dump|reveal).{0,80}(?:api\s*key|token|secret|password|access key|credentials?)/i,
   },
   {
     label: "credential_request_reverse",
-    pattern: /(?:api\s*key|token|secret|password|access key|credentials?).{0,80}(?:send|share|give|provide|post|publish|dump|reveal)/i,
+    pattern:
+      /(?:api\s*key|token|secret|password|access key|credentials?).{0,80}(?:send|share|give|provide|post|publish|dump|reveal)/i,
   },
   {
     label: "emotional_urgency",
-    pattern: /(?:i will die|life or death|emergency|asap|urgent|right now|or else).{0,120}(?:api\s*key|token|secret|password|access key|credentials?)/i,
+    pattern:
+      /(?:i will die|life or death|emergency|asap|urgent|right now|or else).{0,120}(?:api\s*key|token|secret|password|access key|credentials?)/i,
   },
   {
     label: "sudo_rm_rf",
@@ -50,11 +53,7 @@ const INBOUND_SOCIAL_ENGINEERING_PATTERNS: { label: string; pattern: RegExp }[] 
 const MAX_DECODE_CHARS = Number(process.env.MB_INBOUND_DECODE_MAX_CHARS ?? "4000");
 const MAX_DECODE_TOKENS = Number(process.env.MB_INBOUND_DECODE_MAX_TOKENS ?? "5");
 
-function addMatch(
-  matches: SafetyMatch[],
-  seen: Set<string>,
-  match: SafetyMatch
-): void {
+function addMatch(matches: SafetyMatch[], seen: Set<string>, match: SafetyMatch): void {
   const key = `${match.source}:${match.label ?? ""}:${match.pattern ?? ""}`;
   if (seen.has(key)) return;
   seen.add(key);
@@ -66,7 +65,7 @@ function addStringPatterns(
   patterns: { label: string; pattern: string }[],
   matches: SafetyMatch[],
   seen: Set<string>,
-  prefix?: string
+  prefix?: string,
 ): void {
   const lower = text.toLowerCase();
   for (const entry of patterns) {
@@ -85,7 +84,7 @@ function addRegexPatterns(
   patterns: { label: string; pattern: RegExp }[],
   matches: SafetyMatch[],
   seen: Set<string>,
-  prefix?: string
+  prefix?: string,
 ): void {
   for (const entry of patterns) {
     if (entry.pattern.test(text)) {
@@ -264,7 +263,11 @@ export type SafetyMatch = {
   snippet?: string;
 };
 
-export async function scanOutbound(text: string, profile: string, entries: SensitiveEntry[]): Promise<SafetyMatch[]> {
+export async function scanOutbound(
+  text: string,
+  profile: string,
+  entries: SensitiveEntry[],
+): Promise<SafetyMatch[]> {
   const matches: SafetyMatch[] = [];
 
   for (const entry of OUTBOUND_API_KEY_PATTERNS) {
@@ -302,12 +305,16 @@ export async function scanOutbound(text: string, profile: string, entries: Sensi
         "-c",
         `mb-sensitive-${profile}`,
       ],
-      { timeoutMs: Number(process.env.MB_QMD_VSEARCH_TIMEOUT_MS ?? "8000") }
+      { timeoutMs: Number(process.env.MB_QMD_VSEARCH_TIMEOUT_MS ?? "8000") },
     );
 
     if (result.exitCode === 0 && result.stdout.trim().length > 0) {
       try {
-        const parsed = JSON.parse(result.stdout) as Array<{ score: number; file: string; snippet?: string }>;
+        const parsed = JSON.parse(result.stdout) as Array<{
+          score: number;
+          file: string;
+          snippet?: string;
+        }>;
         for (const item of parsed) {
           matches.push({
             source: "qmd",
@@ -325,7 +332,10 @@ export async function scanOutbound(text: string, profile: string, entries: Sensi
   return matches;
 }
 
-export async function scanInbound(text: string, options: { useQmd?: boolean } = {}): Promise<SafetyMatch[]> {
+export async function scanInbound(
+  text: string,
+  options: { useQmd?: boolean } = {},
+): Promise<SafetyMatch[]> {
   const matches: SafetyMatch[] = [];
   const seen = new Set<string>();
   const sample = text.slice(0, Math.max(0, MAX_DECODE_CHARS));
@@ -343,7 +353,13 @@ export async function scanInbound(text: string, options: { useQmd?: boolean } = 
       if (shift === 13) continue;
       const shifted = caesarShift(sample, shift);
       addStringPatterns(shifted, JAILBREAK_PATTERNS, matches, seen, `decoded_caesar_${shift}`);
-      addRegexPatterns(shifted, INBOUND_SOCIAL_ENGINEERING_PATTERNS, matches, seen, `decoded_caesar_${shift}`);
+      addRegexPatterns(
+        shifted,
+        INBOUND_SOCIAL_ENGINEERING_PATTERNS,
+        matches,
+        seen,
+        `decoded_caesar_${shift}`,
+      );
       if (matches.length >= 10) break;
     }
   }
@@ -384,12 +400,16 @@ export async function scanInbound(text: string, options: { useQmd?: boolean } = 
         "-c",
         "mb-jailbreak",
       ],
-      { timeoutMs: Number(process.env.MB_QMD_VSEARCH_TIMEOUT_MS ?? "8000") }
+      { timeoutMs: Number(process.env.MB_QMD_VSEARCH_TIMEOUT_MS ?? "8000") },
     );
 
     if (result.exitCode === 0 && result.stdout.trim().length > 0) {
       try {
-        const parsed = JSON.parse(result.stdout) as Array<{ score: number; file: string; snippet?: string }>;
+        const parsed = JSON.parse(result.stdout) as Array<{
+          score: number;
+          file: string;
+          snippet?: string;
+        }>;
         for (const item of parsed) {
           matches.push({
             source: "qmd",

@@ -27,12 +27,14 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function buildUrl(baseUrl: string, path: string, query?: Record<string, string | number | boolean | undefined>): URL {
+function buildUrl(
+  baseUrl: string,
+  path: string,
+  query?: Record<string, string | number | boolean | undefined>,
+): URL {
   const base = new URL(baseUrl);
   const basePath = base.pathname.endsWith("/") ? base.pathname.slice(0, -1) : base.pathname;
-  const resolvedPath = path.startsWith("/")
-    ? `${basePath}${path}`
-    : `${basePath}/${path}`;
+  const resolvedPath = path.startsWith("/") ? `${basePath}${path}` : `${basePath}/${path}`;
   const url = new URL(resolvedPath, base);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
@@ -45,7 +47,7 @@ function buildUrl(baseUrl: string, path: string, query?: Record<string, string |
 
 function buildHeaders(apiKey?: string): Record<string, string> {
   const headers: Record<string, string> = {
-    "Accept": "application/json",
+    Accept: "application/json",
   };
   if (apiKey) {
     headers["Authorization"] = `Bearer ${apiKey}`;
@@ -58,7 +60,7 @@ export async function request(
   client: ClientOptions,
   method: string,
   path: string,
-  opts: RequestOptions = {}
+  opts: RequestOptions = {},
 ): Promise<ResponseResult> {
   const url = buildUrl(client.baseUrl, path, opts.query);
 
@@ -153,7 +155,7 @@ export async function uploadFile(
   path: string,
   filePath: string,
   fieldName: string = "file",
-  extraFields?: Record<string, string>
+  extraFields?: Record<string, string>,
 ): Promise<ResponseResult> {
   const url = buildUrl(client.baseUrl, path);
   const headers = buildHeaders(client.apiKey);

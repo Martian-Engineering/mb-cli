@@ -28,7 +28,10 @@ function hashText(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
-export function buildContentAudit(text?: string): { content_preview?: string; content_sha256?: string } {
+export function buildContentAudit(text?: string): {
+  content_preview?: string;
+  content_sha256?: string;
+} {
   if (!text || text.trim().length === 0) {
     return {};
   }

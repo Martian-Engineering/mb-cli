@@ -66,7 +66,7 @@ export function ensureQmdCollection(name: string, path: string, pattern: string)
 
 export async function runQmd(
   args: string[],
-  options: { timeoutMs?: number } = {}
+  options: { timeoutMs?: number } = {},
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const resolved = resolveQmdCommand();
   if (!resolved) {
@@ -110,23 +110,28 @@ export async function runQmd(
     return resultPromise;
   }
 
-  const timeoutPromise = new Promise<{ exitCode: number; stdout: string; stderr: string }>((resolve) => {
-    timeout = setTimeout(() => {
-      try {
-        proc.kill();
-      } catch {
-        // ignore
-      }
-      resolve({ exitCode: 124, stdout: "", stderr: "qmd timeout" });
-    }, timeoutMs);
-  });
+  const timeoutPromise = new Promise<{ exitCode: number; stdout: string; stderr: string }>(
+    (resolve) => {
+      timeout = setTimeout(() => {
+        try {
+          proc.kill();
+        } catch {
+          // ignore
+        }
+        resolve({ exitCode: 124, stdout: "", stderr: "qmd timeout" });
+      }, timeoutMs);
+    },
+  );
 
   const result = await Promise.race([resultPromise, timeoutPromise]);
   if (timeout) clearTimeout(timeout);
   return result;
 }
 
-export async function ensureQmdIndex(collectionName: string, collectionPath: string): Promise<void> {
+export async function ensureQmdIndex(
+  collectionName: string,
+  collectionPath: string,
+): Promise<void> {
   const changed = ensureQmdCollection(collectionName, collectionPath, "**/*.md");
   const indexExists = existsSync(qmdIndexPath());
   if (!indexExists || changed) {

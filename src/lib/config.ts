@@ -63,11 +63,18 @@ export function resolveProfileName(explicit?: string | undefined): string {
   return "default";
 }
 
-export function getProfile(store: CredentialsStore, profileName: string): ProfileRecord | undefined {
+export function getProfile(
+  store: CredentialsStore,
+  profileName: string,
+): ProfileRecord | undefined {
   return store[profileName];
 }
 
-export function upsertProfile(store: CredentialsStore, profileName: string, record: ProfileRecord): CredentialsStore {
+export function upsertProfile(
+  store: CredentialsStore,
+  profileName: string,
+  record: ProfileRecord,
+): CredentialsStore {
   return {
     ...store,
     [profileName]: {
@@ -106,13 +113,29 @@ function keychainService(): string {
 
 function readKeychainKey(profileName: string): string | undefined {
   if (!canUseKeychain()) return undefined;
-  const res = runSecurity(["find-generic-password", "-a", profileName, "-s", keychainService(), "-w"]);
+  const res = runSecurity([
+    "find-generic-password",
+    "-a",
+    profileName,
+    "-s",
+    keychainService(),
+    "-w",
+  ]);
   return res.ok ? res.stdout : undefined;
 }
 
 function writeKeychainKey(profileName: string, apiKey: string): boolean {
   if (!canUseKeychain()) return false;
-  const res = runSecurity(["add-generic-password", "-a", profileName, "-s", keychainService(), "-w", apiKey, "-U"]);
+  const res = runSecurity([
+    "add-generic-password",
+    "-a",
+    profileName,
+    "-s",
+    keychainService(),
+    "-w",
+    apiKey,
+    "-U",
+  ]);
   return res.ok;
 }
 
@@ -122,7 +145,10 @@ function deleteKeychainKey(profileName: string): boolean {
   return res.ok;
 }
 
-export function storeApiKey(profileName: string, apiKey: string): { keyRef: "keychain" | "file"; apiKey?: string } {
+export function storeApiKey(
+  profileName: string,
+  apiKey: string,
+): { keyRef: "keychain" | "file"; apiKey?: string } {
   if (writeKeychainKey(profileName, apiKey)) {
     return { keyRef: "keychain" };
   }
@@ -158,7 +184,11 @@ export function listSensitiveEntries(store: SensitiveStore, profileName: string)
   return store[profileName] || [];
 }
 
-export function upsertSensitiveEntry(store: SensitiveStore, profileName: string, entry: SensitiveEntry): SensitiveStore {
+export function upsertSensitiveEntry(
+  store: SensitiveStore,
+  profileName: string,
+  entry: SensitiveEntry,
+): SensitiveStore {
   const existing = store[profileName] || [];
   const filtered = existing.filter((e) => e.label !== entry.label);
   return {
@@ -167,7 +197,11 @@ export function upsertSensitiveEntry(store: SensitiveStore, profileName: string,
   };
 }
 
-export function removeSensitiveEntry(store: SensitiveStore, profileName: string, label: string): SensitiveStore {
+export function removeSensitiveEntry(
+  store: SensitiveStore,
+  profileName: string,
+  label: string,
+): SensitiveStore {
   const existing = store[profileName] || [];
   return {
     ...store,

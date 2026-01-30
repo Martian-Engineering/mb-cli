@@ -58,7 +58,10 @@ function prune(times: number[], windowMs: number, now: number): number[] {
   return times.filter((t) => t >= cutoff);
 }
 
-export function checkRateLimit(profile: string, action: "request" | "comment" | "post"): RateDecision {
+export function checkRateLimit(
+  profile: string,
+  action: "request" | "comment" | "post",
+): RateDecision {
   const store = loadStore();
   const state = ensureState(store, profile);
   const now = Date.now();
@@ -76,7 +79,11 @@ export function checkRateLimit(profile: string, action: "request" | "comment" | 
   if (action === "request") {
     if (state.requests.length >= REQUESTS_PER_MIN) {
       const oldest = state.requests[0];
-      return { allowed: false, waitMs: oldest + 60_000 - now, reason: "rate limit: 100 requests/min" };
+      return {
+        allowed: false,
+        waitMs: oldest + 60_000 - now,
+        reason: "rate limit: 100 requests/min",
+      };
     }
     return { allowed: true, waitMs: 0, reason: "ok" };
   }
@@ -84,7 +91,11 @@ export function checkRateLimit(profile: string, action: "request" | "comment" | 
   if (action === "comment") {
     if (state.comments.length >= COMMENTS_PER_HOUR) {
       const oldest = state.comments[0];
-      return { allowed: false, waitMs: oldest + 60 * 60_000 - now, reason: "rate limit: 50 comments/hour" };
+      return {
+        allowed: false,
+        waitMs: oldest + 60 * 60_000 - now,
+        reason: "rate limit: 50 comments/hour",
+      };
     }
     return { allowed: true, waitMs: 0, reason: "ok" };
   }
@@ -126,7 +137,11 @@ export function recordComment(profile: string): void {
   recordAction(profile, "request");
 }
 
-export function applyServerRetryAfter(profile: string, action: "request" | "comment" | "post", retryAfterSeconds: number): void {
+export function applyServerRetryAfter(
+  profile: string,
+  action: "request" | "comment" | "post",
+  retryAfterSeconds: number,
+): void {
   const store = loadStore();
   const state = ensureState(store, profile);
   if (!state.blocked_until) state.blocked_until = {};
