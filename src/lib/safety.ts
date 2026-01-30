@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, unlinkSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from "fs";
 import { basename, dirname, join } from "path";
 import { SensitiveEntry } from "./config";
 import { jailbreakDir, sensitiveFactsDir } from "./paths";
