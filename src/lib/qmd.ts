@@ -64,7 +64,10 @@ export function ensureQmdCollection(name: string, path: string, pattern: string)
   return true;
 }
 
-export async function runQmd(args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+export async function runQmd(
+  args: string[],
+  options: { timeoutMs?: number } = {}
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const resolved = resolveQmdCommand();
   if (!resolved) {
     return { exitCode: 1, stdout: "", stderr: "qmd not found" };
@@ -85,18 +88,50 @@ export async function runQmd(args: string[]): Promise<{ exitCode: number; stdout
     stderr: "pipe",
   });
 
-  const stdout = await new Response(proc.stdout).text();
-  const stderr = await new Response(proc.stderr).text();
-  const exitCode = await proc.exited;
+  const timeoutMs = Number.isFinite(options.timeoutMs)
+    ? Number(options.timeoutMs)
+    : Number(process.env.MB_QMD_TIMEOUT_MS ?? "15000");
 
-  return { exitCode, stdout, stderr };
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+
+  const resultPromise = (async () => {
+    try {
+      const stdout = await new Response(proc.stdout).text();
+      const stderr = await new Response(proc.stderr).text();
+      const exitCode = await proc.exited;
+      return { exitCode, stdout, stderr };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return { exitCode: 1, stdout: "", stderr: message };
+    }
+  })();
+
+  if (!timeoutMs || timeoutMs <= 0) {
+    return resultPromise;
+  }
+
+  const timeoutPromise = new Promise<{ exitCode: number; stdout: string; stderr: string }>((resolve) => {
+    timeout = setTimeout(() => {
+      try {
+        proc.kill();
+      } catch {
+        // ignore
+      }
+      resolve({ exitCode: 124, stdout: "", stderr: "qmd timeout" });
+    }, timeoutMs);
+  });
+
+  const result = await Promise.race([resultPromise, timeoutPromise]);
+  if (timeout) clearTimeout(timeout);
+  return result;
 }
 
 export async function ensureQmdIndex(collectionName: string, collectionPath: string): Promise<void> {
   const changed = ensureQmdCollection(collectionName, collectionPath, "**/*.md");
   const indexExists = existsSync(qmdIndexPath());
   if (!indexExists || changed) {
-    await runQmd(["update"]);
-    await runQmd(["embed"]);
+    const timeoutMs = Number(process.env.MB_QMD_INDEX_TIMEOUT_MS ?? "60000");
+    await runQmd(["update"], { timeoutMs });
+    await runQmd(["embed"], { timeoutMs });
   }
 }

@@ -79,15 +79,18 @@ export async function scanOutbound(text: string, profile: string, entries: Sensi
     syncSensitiveFactsFiles(profile, entries);
     await ensureQmdIndex(`mb-sensitive-${profile}`, sensitiveFactsDir(profile));
 
-    const result = await runQmd([
-      "vsearch",
-      text,
-      "--json",
-      "--min-score",
-      String(DEFAULT_OUTBOUND_THRESHOLD),
-      "-c",
-      `mb-sensitive-${profile}`,
-    ]);
+    const result = await runQmd(
+      [
+        "vsearch",
+        text,
+        "--json",
+        "--min-score",
+        String(DEFAULT_OUTBOUND_THRESHOLD),
+        "-c",
+        `mb-sensitive-${profile}`,
+      ],
+      { timeoutMs: Number(process.env.MB_QMD_VSEARCH_TIMEOUT_MS ?? "8000") }
+    );
 
     if (result.exitCode === 0 && result.stdout.trim().length > 0) {
       try {
@@ -109,7 +112,7 @@ export async function scanOutbound(text: string, profile: string, entries: Sensi
   return matches;
 }
 
-export async function scanInbound(text: string): Promise<SafetyMatch[]> {
+export async function scanInbound(text: string, options: { useQmd?: boolean } = {}): Promise<SafetyMatch[]> {
   const matches: SafetyMatch[] = [];
 
   for (const entry of JAILBREAK_PATTERNS) {
@@ -118,19 +121,22 @@ export async function scanInbound(text: string): Promise<SafetyMatch[]> {
     }
   }
 
-  if (resolveQmdCommand()) {
+  if ((options.useQmd ?? true) && resolveQmdCommand()) {
     ensureJailbreakFiles();
     await ensureQmdIndex("mb-jailbreak", jailbreakDir());
 
-    const result = await runQmd([
-      "vsearch",
-      text,
-      "--json",
-      "--min-score",
-      String(DEFAULT_INBOUND_THRESHOLD),
-      "-c",
-      "mb-jailbreak",
-    ]);
+    const result = await runQmd(
+      [
+        "vsearch",
+        text,
+        "--json",
+        "--min-score",
+        String(DEFAULT_INBOUND_THRESHOLD),
+        "-c",
+        "mb-jailbreak",
+      ],
+      { timeoutMs: Number(process.env.MB_QMD_VSEARCH_TIMEOUT_MS ?? "8000") }
+    );
 
     if (result.exitCode === 0 && result.stdout.trim().length > 0) {
       try {

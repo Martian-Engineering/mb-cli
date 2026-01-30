@@ -90,6 +90,15 @@ function collectStrings(value: unknown, acc: string[] = [], depth = 0): string[]
   return acc;
 }
 
+function redactProfileData(profile: unknown): unknown {
+  if (!profile || typeof profile !== "object") return profile;
+  const record = { ...(profile as Record<string, unknown>) };
+  if (typeof record.api_key === "string") {
+    record.api_key = "[redacted]";
+  }
+  return record;
+}
+
 function sanitizeFields(fields: Record<string, string | undefined>) {
   const warnings = new Set<string>();
   let changed = false;
@@ -227,11 +236,24 @@ async function attachInboundSafety(data: unknown) {
   const sanitized = sanitizeData(data);
   const strings = collectStrings(sanitized.value);
   if (strings.length === 0) {
-    return { data: sanitized.value, safety: [] as unknown[], sanitization: sanitized.warnings };
+    return { data: sanitized.value, safety: [] as unknown[], sanitization: sanitized.warnings, meta: { truncated: false, qmd: "skipped" } };
   }
   const combined = strings.join("\n");
-  const matches = await scanInbound(combined);
-  return { data: sanitized.value, safety: matches, sanitization: sanitized.warnings };
+  const maxChars = Math.max(2000, Number(process.env.MB_INBOUND_MAX_CHARS ?? "20000"));
+  const maxQmdChars = Math.max(2000, Number(process.env.MB_INBOUND_QMD_MAX_CHARS ?? "8000"));
+  const truncated = combined.length > maxChars;
+  const sample = truncated ? combined.slice(0, maxChars) : combined;
+  const useQmd = sample.length <= maxQmdChars;
+  const matches = await scanInbound(sample, { useQmd });
+  const warnings = [...sanitized.warnings];
+  if (truncated) warnings.push("Inbound safety scan truncated (large payload)");
+  if (!useQmd) warnings.push("Inbound safety qmd scan skipped (large payload)");
+  return {
+    data: sanitized.value,
+    safety: matches,
+    sanitization: warnings,
+    meta: { truncated, qmd: useQmd ? "used" : "skipped", scanned_chars: sample.length, total_chars: combined.length },
+  };
 }
 
 // Register
@@ -438,7 +460,7 @@ program
 
     if (!res.ok) {
       if (opts.json) {
-        printJson({ profile: profileName, profile_data: profile, error: res.error || res.data });
+        printJson({ profile: profileName, profile_data: redactProfileData(profile), error: res.error || res.data });
       } else {
         printError(`Whoami failed (${res.status}): ${res.error || "unknown error"}`, opts);
       }
@@ -447,7 +469,12 @@ program
 
     if (opts.json) {
       const sanitized = sanitizeData(res.data);
-      printJson({ profile: profileName, profile_data: profile, api_data: sanitized.value, sanitization: sanitized.warnings });
+      printJson({
+        profile: profileName,
+        profile_data: redactProfileData(profile),
+        api_data: sanitized.value,
+        sanitization: sanitized.warnings,
+      });
       return;
     }
 
@@ -815,10 +842,19 @@ comments
   .action(async (postId, cmd) => {
     const opts = globals();
     const { client } = buildClient(true);
-    const res = await request(client, "GET", `/posts/${postId}/comments`, {
+    let res = await request(client, "GET", `/posts/${postId}/comments`, {
       query: { sort: cmd.sort, limit: cmd.limit, cursor: cmd.cursor },
       idempotent: true,
     });
+    let fallback = false;
+
+    if (!res.ok && res.status === 405) {
+      const fallbackRes = await request(client, "GET", `/posts/${postId}`, { idempotent: true });
+      if (fallbackRes.ok) {
+        res = fallbackRes;
+        fallback = true;
+      }
+    }
 
     if (!res.ok) {
       printError(`Comments list failed (${res.status}): ${res.error || "unknown error"}`, opts);
@@ -827,10 +863,13 @@ comments
 
     const { data, safety, sanitization } = await attachInboundSafety(res.data);
     if (opts.json) {
-      printJson({ result: data, safety, sanitization });
+      printJson({ result: data, safety, sanitization, fallback: fallback ? "post" : undefined });
       return;
     }
 
+    if (fallback) {
+      printInfo("Note: comments endpoint unavailable; showing post with comments instead.", opts);
+    }
     warnSanitization(sanitization, opts, "sanitized inbound comments content");
     if (safety.length > 0) {
       printInfo("Warning: potential prompt-injection patterns detected in comments content.", opts);
@@ -2624,7 +2663,7 @@ auth
       printJson({
         profile: profileName,
         key_source: keySource,
-        profile_data: profile,
+        profile_data: redactProfileData(profile),
         api_data: sanitized.value,
         sanitization: sanitized.warnings,
       });
