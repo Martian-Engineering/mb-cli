@@ -14,6 +14,7 @@ import { registerSearchCommands } from "./commands/search";
 import { registerSecretCommands } from "./commands/secrets";
 import { registerSubmoltCommands } from "./commands/submolts";
 import { registerVersionCommand } from "./commands/version";
+import { registerVerifyCommands } from "./commands/verify";
 import { registerVoteCommands } from "./commands/vote";
 
 declare const MB_NO_DMS: boolean | undefined;
@@ -56,6 +57,7 @@ registerDmCommands(ctx);
 registerSecretCommands(ctx);
 registerSafetyCommands(ctx);
 registerAuthCommands(ctx);
+registerVerifyCommands(ctx);
 registerVersionCommand(ctx);
 
 program.parseAsync(process.argv);
