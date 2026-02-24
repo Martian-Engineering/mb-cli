@@ -198,7 +198,7 @@ export function registerPostCommands(ctx: CommandContext): void {
 
       const res = await request(client, "POST", "/posts", {
         body: {
-          submolt: cmd.submolt,
+          submolt_name: cmd.submolt,
           title: sanitized.title,
           ...(sanitized.content ? { content: sanitized.content } : { url: sanitized.url }),
         },
