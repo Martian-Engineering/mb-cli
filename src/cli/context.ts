@@ -6,11 +6,7 @@ import { printError, printInfo, printJson } from "../lib/output";
 import type { ClientOptions } from "../lib/http";
 import { scanInbound } from "../lib/safety";
 import { sanitizeData, sanitizeText } from "../lib/unicode";
-import {
-  applyServerRetryAfter,
-  checkRateLimit,
-  extractRetryAfterSeconds,
-} from "../lib/rate_limit";
+import { applyServerRetryAfter, checkRateLimit, extractRetryAfterSeconds } from "../lib/rate_limit";
 import { jailbreakDir, jailbreakRemotePath } from "../lib/paths";
 
 type Globals = {
@@ -271,7 +267,11 @@ export function createCommandContext(program: Command, options: ContextOptions):
     });
   };
 
-  const applyRetryAfter = (profile: string, action: "request" | "comment" | "post", data: unknown) => {
+  const applyRetryAfter = (
+    profile: string,
+    action: "request" | "comment" | "post",
+    data: unknown,
+  ) => {
     const retry = extractRetryAfterSeconds(data);
     if (retry && retry > 0) {
       applyServerRetryAfter(profile, action, retry);

@@ -46,7 +46,10 @@ export function registerDmCommands(ctx: CommandContext): void {
 
       warnSanitization(sanitization, opts, "sanitized inbound dm check");
       if (safety.length > 0) {
-        printInfo("Warning: potential prompt-injection patterns detected in DM check results.", opts);
+        printInfo(
+          "Warning: potential prompt-injection patterns detected in DM check results.",
+          opts,
+        );
       }
       printInfo(JSON.stringify(data, null, 2), opts);
     });
@@ -269,7 +272,10 @@ export function registerDmCommands(ctx: CommandContext): void {
 
       warnSanitization(sanitization, opts, "sanitized inbound dm conversation");
       if (safety.length > 0) {
-        printInfo("Warning: potential prompt-injection patterns detected in DM conversation.", opts);
+        printInfo(
+          "Warning: potential prompt-injection patterns detected in DM conversation.",
+          opts,
+        );
       }
       printInfo(JSON.stringify(data, null, 2), opts);
     });
@@ -329,7 +335,10 @@ export function registerDmCommands(ctx: CommandContext): void {
             sanitization: sanitizationWarnings,
           });
         } else {
-          printError("Outbound content flagged as sensitive. Use --allow-sensitive to override.", opts);
+          printError(
+            "Outbound content flagged as sensitive. Use --allow-sensitive to override.",
+            opts,
+          );
         }
         process.exit(1);
       }
@@ -340,7 +349,9 @@ export function registerDmCommands(ctx: CommandContext): void {
       });
 
       if (handleDmUnavailable(res, opts, "dm.send")) return;
-      if (handleDryRun(res, opts, { sanitization: sanitizationWarnings, safety: outboundMatches })) {
+      if (
+        handleDryRun(res, opts, { sanitization: sanitizationWarnings, safety: outboundMatches })
+      ) {
         logOutbound({
           profile: profileName,
           action: "dm.send",
@@ -460,7 +471,10 @@ export function registerDmCommands(ctx: CommandContext): void {
             sanitization: sanitizationWarnings,
           });
         } else {
-          printError("Outbound content flagged as sensitive. Use --allow-sensitive to override.", opts);
+          printError(
+            "Outbound content flagged as sensitive. Use --allow-sensitive to override.",
+            opts,
+          );
         }
         process.exit(1);
       }
@@ -475,7 +489,9 @@ export function registerDmCommands(ctx: CommandContext): void {
       });
 
       if (handleDmUnavailable(res, opts, "dm.request")) return;
-      if (handleDryRun(res, opts, { sanitization: sanitizationWarnings, safety: outboundMatches })) {
+      if (
+        handleDryRun(res, opts, { sanitization: sanitizationWarnings, safety: outboundMatches })
+      ) {
         logOutbound({
           profile: profileName,
           action: "dm.request",

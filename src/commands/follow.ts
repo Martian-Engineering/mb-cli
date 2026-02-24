@@ -4,8 +4,15 @@ import { printError, printInfo, printJson } from "../lib/output";
 import { recordRequest } from "../lib/rate_limit";
 
 export function registerFollowCommands(ctx: CommandContext): void {
-  const { program, globals, buildClient, enforceRateLimit, logOutbound, handleDryRun, applyRetryAfter } =
-    ctx;
+  const {
+    program,
+    globals,
+    buildClient,
+    enforceRateLimit,
+    logOutbound,
+    handleDryRun,
+    applyRetryAfter,
+  } = ctx;
 
   const follow = program.command("follow").description("Follow commands");
 
@@ -30,7 +37,9 @@ export function registerFollowCommands(ctx: CommandContext): void {
         });
         process.exit(1);
       }
-      const res = await request(client, "POST", `/agents/${agentName}/follow`, { idempotent: false });
+      const res = await request(client, "POST", `/agents/${agentName}/follow`, {
+        idempotent: false,
+      });
 
       if (handleDryRun(res, opts, { agent: agentName })) {
         logOutbound({

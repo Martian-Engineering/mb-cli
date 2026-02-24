@@ -152,7 +152,12 @@ export function registerAgentCommands(ctx: CommandContext): void {
       });
 
       if (opts.json) {
-        printJson({ profile: profileName, ...record, raw: data, sanitization: sanitizationWarnings });
+        printJson({
+          profile: profileName,
+          ...record,
+          raw: data,
+          sanitization: sanitizationWarnings,
+        });
         return;
       }
 
@@ -230,7 +235,11 @@ export function registerAgentCommands(ctx: CommandContext): void {
       const claimUrl = typeof profile.claim_url === "string" ? profile.claim_url : undefined;
 
       if (opts.json) {
-        printJson({ profile: profileName, verification_code: verificationCode, claim_url: claimUrl });
+        printJson({
+          profile: profileName,
+          verification_code: verificationCode,
+          claim_url: claimUrl,
+        });
         return;
       }
 

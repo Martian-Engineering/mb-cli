@@ -165,9 +165,16 @@ export function registerCommentCommands(ctx: CommandContext): void {
           safety: outboundMatches,
         });
         if (opts.json) {
-          printJson({ blocked: true, matches: outboundMatches, sanitization: sanitizationWarnings });
+          printJson({
+            blocked: true,
+            matches: outboundMatches,
+            sanitization: sanitizationWarnings,
+          });
         } else {
-          printError("Outbound content flagged as sensitive. Use --allow-sensitive to override.", opts);
+          printError(
+            "Outbound content flagged as sensitive. Use --allow-sensitive to override.",
+            opts,
+          );
         }
         process.exit(1);
       }
@@ -177,7 +184,9 @@ export function registerCommentCommands(ctx: CommandContext): void {
         idempotent: false,
       });
 
-      if (handleDryRun(res, opts, { sanitization: sanitizationWarnings, safety: outboundMatches })) {
+      if (
+        handleDryRun(res, opts, { sanitization: sanitizationWarnings, safety: outboundMatches })
+      ) {
         logOutbound({
           profile: profileName,
           action: "comment.add",
@@ -223,7 +232,11 @@ export function registerCommentCommands(ctx: CommandContext): void {
       });
 
       if (opts.json) {
-        printJson({ result: res.data, safety: outboundMatches, sanitization: sanitizationWarnings });
+        printJson({
+          result: res.data,
+          safety: outboundMatches,
+          sanitization: sanitizationWarnings,
+        });
         return;
       }
       printInfo("Comment posted.", opts);
@@ -281,9 +294,16 @@ export function registerCommentCommands(ctx: CommandContext): void {
           safety: outboundMatches,
         });
         if (opts.json) {
-          printJson({ blocked: true, matches: outboundMatches, sanitization: sanitizationWarnings });
+          printJson({
+            blocked: true,
+            matches: outboundMatches,
+            sanitization: sanitizationWarnings,
+          });
         } else {
-          printError("Outbound content flagged as sensitive. Use --allow-sensitive to override.", opts);
+          printError(
+            "Outbound content flagged as sensitive. Use --allow-sensitive to override.",
+            opts,
+          );
         }
         process.exit(1);
       }
@@ -293,7 +313,9 @@ export function registerCommentCommands(ctx: CommandContext): void {
         idempotent: false,
       });
 
-      if (handleDryRun(res, opts, { sanitization: sanitizationWarnings, safety: outboundMatches })) {
+      if (
+        handleDryRun(res, opts, { sanitization: sanitizationWarnings, safety: outboundMatches })
+      ) {
         logOutbound({
           profile: profileName,
           action: "comment.reply",
@@ -339,7 +361,11 @@ export function registerCommentCommands(ctx: CommandContext): void {
       });
 
       if (opts.json) {
-        printJson({ result: res.data, safety: outboundMatches, sanitization: sanitizationWarnings });
+        printJson({
+          result: res.data,
+          safety: outboundMatches,
+          sanitization: sanitizationWarnings,
+        });
         return;
       }
       printInfo("Reply posted.", opts);

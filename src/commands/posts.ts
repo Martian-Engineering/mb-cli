@@ -101,7 +101,10 @@ export function registerPostCommands(ctx: CommandContext): void {
                 const author = (post as Record<string, unknown>).author;
                 if (!author || typeof author !== "object") return false;
                 const authorName = (author as Record<string, unknown>).name;
-                return typeof authorName === "string" && authorName.toLowerCase() === agentName.toLowerCase();
+                return (
+                  typeof authorName === "string" &&
+                  authorName.toLowerCase() === agentName.toLowerCase()
+                );
               });
 
               if (ownedPosts.length > 0) {
@@ -246,9 +249,16 @@ export function registerPostCommands(ctx: CommandContext): void {
           safety: outboundMatches,
         });
         if (opts.json) {
-          printJson({ blocked: true, matches: outboundMatches, sanitization: sanitizationWarnings });
+          printJson({
+            blocked: true,
+            matches: outboundMatches,
+            sanitization: sanitizationWarnings,
+          });
         } else {
-          printError("Outbound content flagged as sensitive. Use --allow-sensitive to override.", opts);
+          printError(
+            "Outbound content flagged as sensitive. Use --allow-sensitive to override.",
+            opts,
+          );
         }
         process.exit(1);
       }

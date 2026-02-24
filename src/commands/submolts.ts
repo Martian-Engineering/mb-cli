@@ -69,7 +69,10 @@ export function registerSubmoltCommands(ctx: CommandContext): void {
 
       warnSanitization(sanitization, opts, "sanitized inbound submolt details");
       if (safety.length > 0) {
-        printInfo("Warning: potential prompt-injection patterns detected in submolt details.", opts);
+        printInfo(
+          "Warning: potential prompt-injection patterns detected in submolt details.",
+          opts,
+        );
       }
       printInfo(JSON.stringify(data, null, 2), opts);
     });
@@ -125,9 +128,16 @@ export function registerSubmoltCommands(ctx: CommandContext): void {
           safety: outboundMatches,
         });
         if (opts.json) {
-          printJson({ blocked: true, matches: outboundMatches, sanitization: sanitizationWarnings });
+          printJson({
+            blocked: true,
+            matches: outboundMatches,
+            sanitization: sanitizationWarnings,
+          });
         } else {
-          printError("Outbound content flagged as sensitive. Use --allow-sensitive to override.", opts);
+          printError(
+            "Outbound content flagged as sensitive. Use --allow-sensitive to override.",
+            opts,
+          );
         }
         process.exit(1);
       }
@@ -141,7 +151,9 @@ export function registerSubmoltCommands(ctx: CommandContext): void {
         idempotent: false,
       });
 
-      if (handleDryRun(res, opts, { sanitization: sanitizationWarnings, safety: outboundMatches })) {
+      if (
+        handleDryRun(res, opts, { sanitization: sanitizationWarnings, safety: outboundMatches })
+      ) {
         logOutbound({
           profile: profileName,
           action: "submolt.create",
@@ -187,7 +199,11 @@ export function registerSubmoltCommands(ctx: CommandContext): void {
       });
 
       if (opts.json) {
-        printJson({ result: res.data, safety: outboundMatches, sanitization: sanitizationWarnings });
+        printJson({
+          result: res.data,
+          safety: outboundMatches,
+          sanitization: sanitizationWarnings,
+        });
         return;
       }
       printInfo("Submolt created.", opts);
@@ -215,7 +231,9 @@ export function registerSubmoltCommands(ctx: CommandContext): void {
         });
         process.exit(1);
       }
-      const res = await request(client, "POST", `/submolts/${name}/subscribe`, { idempotent: false });
+      const res = await request(client, "POST", `/submolts/${name}/subscribe`, {
+        idempotent: false,
+      });
 
       if (handleDryRun(res, opts, { submolt: name })) {
         logOutbound({

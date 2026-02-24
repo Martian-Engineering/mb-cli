@@ -4,8 +4,15 @@ import { printError, printInfo, printJson } from "../lib/output";
 import { recordRequest } from "../lib/rate_limit";
 
 export function registerVoteCommands(ctx: CommandContext): void {
-  const { program, globals, buildClient, enforceRateLimit, logOutbound, handleDryRun, applyRetryAfter } =
-    ctx;
+  const {
+    program,
+    globals,
+    buildClient,
+    enforceRateLimit,
+    logOutbound,
+    handleDryRun,
+    applyRetryAfter,
+  } = ctx;
 
   const vote = program.command("vote").description("Vote commands");
 

@@ -13,7 +13,9 @@ export function registerSearchCommands(ctx: CommandContext): void {
     .action(async (query, cmd) => {
       const opts = globals();
       const { client } = buildClient(true);
-      const res = await request(client, "GET", "/search", { query: { q: query, limit: cmd.limit } });
+      const res = await request(client, "GET", "/search", {
+        query: { q: query, limit: cmd.limit },
+      });
 
       if (!res.ok) {
         printError(`Search failed (${res.status}): ${res.error || "unknown error"}`, opts);
