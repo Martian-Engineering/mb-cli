@@ -57,7 +57,11 @@ export function registerPostCommands(ctx: CommandContext): void {
           meRes.data && typeof meRes.data === "object"
             ? (meRes.data as Record<string, unknown>)
             : undefined;
-        const agentName = typeof mePayload?.name === "string" ? mePayload.name : undefined;
+        const meAgent =
+          mePayload?.agent && typeof mePayload.agent === "object"
+            ? (mePayload.agent as Record<string, unknown>)
+            : undefined;
+        const agentName = typeof meAgent?.name === "string" ? meAgent.name : undefined;
 
         if (!agentName) {
           printError(
