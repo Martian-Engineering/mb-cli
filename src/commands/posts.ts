@@ -5,6 +5,13 @@ import { printError, printInfo, printJson } from "../lib/output";
 import { recordPost, recordRequest } from "../lib/rate_limit";
 import { scanOutbound } from "../lib/safety";
 
+type MineDiagnostic = {
+  warning: string;
+  matched_posts: number;
+  author_name?: string;
+  sample_post_ids: string[];
+};
+
 export function registerPostCommands(ctx: CommandContext): void {
   const {
     program,
@@ -32,40 +39,29 @@ export function registerPostCommands(ctx: CommandContext): void {
     .option("--cursor <cursor>", "Pagination cursor")
     .action(async (cmd) => {
       const opts = globals();
-      const { client, profile } = buildClient(true);
+      const { client } = buildClient(true);
       let res;
+      let mineDiagnostic: MineDiagnostic | undefined;
 
       if (cmd.mine) {
-        const storedName =
-          profile && typeof (profile as Record<string, unknown>).agent_name === "string"
-            ? ((profile as Record<string, unknown>).agent_name as string)
-            : undefined;
-
-        let agentName = storedName;
-        if (!agentName) {
-          const meRes = await request(client, "GET", "/agents/me", { idempotent: true });
-          if (!meRes.ok) {
-            printError(
-              `Posts list (mine) failed to resolve agent name (${meRes.status}): ${meRes.error || "unknown error"}`,
-              opts,
-            );
-            process.exit(1);
-          }
-          const payload = meRes.data as Record<string, unknown> | undefined;
-          agentName =
-            typeof payload?.name === "string"
-              ? payload.name
-              : payload &&
-                  typeof payload?.agent === "object" &&
-                  payload.agent &&
-                  typeof (payload.agent as Record<string, unknown>).name === "string"
-                ? ((payload.agent as Record<string, unknown>).name as string)
-                : undefined;
+        const meRes = await request(client, "GET", "/agents/me", { idempotent: true });
+        if (!meRes.ok) {
+          printError(
+            `Posts list (mine) failed to resolve agent name (${meRes.status}): ${meRes.error || "unknown error"}`,
+            opts,
+          );
+          process.exit(1);
         }
+
+        const mePayload =
+          meRes.data && typeof meRes.data === "object"
+            ? (meRes.data as Record<string, unknown>)
+            : undefined;
+        const agentName = typeof mePayload?.name === "string" ? mePayload.name : undefined;
 
         if (!agentName) {
           printError(
-            "Posts list (mine) requires a known agent name. Re-run 'mb register' or ensure the profile has agent_name stored.",
+            "Posts list (mine) requires a known agent name from /agents/me. Re-run 'mb register' and verify 'mb whoami'.",
             opts,
           );
           process.exit(1);
@@ -73,7 +69,52 @@ export function registerPostCommands(ctx: CommandContext): void {
 
         res = await request(client, "GET", "/agents/profile", {
           query: { name: agentName },
+          idempotent: true,
         });
+
+        if (res.ok) {
+          const profilePayload =
+            res.data && typeof res.data === "object" ? (res.data as Record<string, unknown>) : {};
+          const recentPosts = Array.isArray(profilePayload.recentPosts)
+            ? profilePayload.recentPosts
+            : [];
+
+          if (recentPosts.length === 0) {
+            const globalRes = await request(client, "GET", "/posts", {
+              query: { sort: "new", limit: Math.max(20, Number(cmd.limit) || 20) },
+              idempotent: true,
+            });
+
+            if (globalRes.ok) {
+              const globalPayload =
+                globalRes.data && typeof globalRes.data === "object"
+                  ? (globalRes.data as Record<string, unknown>)
+                  : {};
+              const globalPosts = Array.isArray(globalPayload.posts) ? globalPayload.posts : [];
+
+              const ownedPosts = globalPosts.filter((post): post is Record<string, unknown> => {
+                if (!post || typeof post !== "object") return false;
+                const author = (post as Record<string, unknown>).author;
+                if (!author || typeof author !== "object") return false;
+                const authorName = (author as Record<string, unknown>).name;
+                return typeof authorName === "string" && authorName.toLowerCase() === agentName.toLowerCase();
+              });
+
+              if (ownedPosts.length > 0) {
+                mineDiagnostic = {
+                  warning:
+                    "Mine/profile attribution mismatch: profile shows no recent posts, but global posts contains entries for this agent.",
+                  matched_posts: ownedPosts.length,
+                  author_name: agentName,
+                  sample_post_ids: ownedPosts
+                    .map((post) => (typeof post.id === "string" ? post.id : undefined))
+                    .filter((id): id is string => !!id)
+                    .slice(0, 5),
+                };
+              }
+            }
+          }
+        }
       } else {
         res = await request(client, "GET", "/posts", {
           query: { sort: cmd.sort, submolt: cmd.submolt, limit: cmd.limit, cursor: cmd.cursor },
@@ -87,12 +128,24 @@ export function registerPostCommands(ctx: CommandContext): void {
 
       const { data, safety, sanitization } = await attachInboundSafety(res.data);
       if (opts.json) {
-        printJson({ result: data, safety, sanitization, mode: cmd.mine ? "mine" : "all" });
+        printJson({
+          result: data,
+          safety,
+          sanitization,
+          mode: cmd.mine ? "mine" : "all",
+          diagnostics: mineDiagnostic,
+        });
         return;
       }
 
       if (cmd.mine) {
         printInfo("Note: showing agent profile response with recentPosts.", opts);
+        if (mineDiagnostic) {
+          printInfo(
+            `Warning: ${mineDiagnostic.warning} Matched posts in global feed: ${mineDiagnostic.matched_posts}.`,
+            opts,
+          );
+        }
       }
       warnSanitization(sanitization, opts, "sanitized inbound posts content");
       if (safety.length > 0) {
